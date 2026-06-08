@@ -1,0 +1,14 @@
+# Third-party sources are fetched, never vendored (see experiments/ablation/upstream.lock).
+experiments/ablation/upstream/
+experiments/ablation/arms/
+
+# Harness-Bench publishes no LICENSE, so its raw data is cached locally and never
+# committed. Derived aggregates in data/*.csv are ours and are tracked.
+data/raw/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
