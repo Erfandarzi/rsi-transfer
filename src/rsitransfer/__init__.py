@@ -6,7 +6,7 @@ model no longer has -- it is a crutch, and it depreciates. A flat slope means it
 something no model provides for itself, and it endures.
 """
 
-from rsitransfer.crutch import CrutchFit, crutch_coefficient
+from rsitransfer.crutch import CrutchFit, crutch_coefficient, headroom_normalised_gain
 
-__all__ = ["CrutchFit", "crutch_coefficient"]
+__all__ = ["CrutchFit", "crutch_coefficient", "headroom_normalised_gain"]
 __version__ = "0.1.0"

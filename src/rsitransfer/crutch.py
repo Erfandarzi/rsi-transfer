@@ -32,7 +32,7 @@ from typing import Sequence
 import numpy as np
 from scipy import stats
 
-__all__ = ["CrutchFit", "crutch_coefficient"]
+__all__ = ["CrutchFit", "crutch_coefficient", "headroom_normalised_gain"]
 
 
 @dataclass(frozen=True)
@@ -82,6 +82,8 @@ class CrutchFit:
 def crutch_coefficient(
     baseline: Sequence[float],
     treated: Sequence[float],
+    *,
+    normalise_headroom: bool = False,
 ) -> CrutchFit:
     """Fit modification benefit against base-model capability.
 
@@ -89,6 +91,11 @@ def crutch_coefficient(
         baseline: each model's score without the modification. Doubles as the
             capability axis -- capability is measured on the same tasks, not assumed.
         treated: the same models' scores with the modification applied.
+        normalise_headroom: express each gain as a fraction of the room the model had
+            left (gain / (100 - baseline)) before fitting. A bounded metric compresses
+            gains near ceiling, which can manufacture a negative slope out of nothing;
+            this is the robustness check against that. Requires scores on a 0-100 scale.
+
     Returns:
         CrutchFit. A negative beta means the modification is worth less on stronger
         models -- a crutch.
@@ -110,6 +117,8 @@ def crutch_coefficient(
         raise ValueError("capability axis has no variance; the ladder must span a range")
 
     gains = treat - base
+    if normalise_headroom:
+        gains = headroom_normalised_gain(base, treat)
 
     fit = stats.linregress(base, gains)
     return CrutchFit(
@@ -123,3 +132,22 @@ def crutch_coefficient(
         capability=base,
     )
 
+
+def headroom_normalised_gain(
+    baseline: Sequence[float],
+    treated: Sequence[float],
+    *,
+    ceiling: float = 100.0,
+) -> np.ndarray:
+    """Gain as a fraction of the headroom the model had left.
+
+    On a bounded metric a model scoring 90 simply cannot gain 20 points, so raw gains
+    shrink near ceiling whether or not the modification is compensatory. Dividing by
+    (ceiling - baseline) removes that artefact.
+    """
+    base = np.asarray(baseline, dtype=float)
+    treat = np.asarray(treated, dtype=float)
+    headroom = ceiling - base
+    if np.any(headroom <= 0):
+        raise ValueError(f"baseline scores must lie below the ceiling of {ceiling}")
+    return (treat - base) / headroom
