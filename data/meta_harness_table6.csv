@@ -1,0 +1,11 @@
+# Source: Meta-Harness, arXiv:2603.28052, Table 6 (held-out model evaluation of the
+# discovered retrieval harness on 200 IMO-level problems).
+# Transcribed 2026-09-20 from https://arxiv.org/html/2603.28052v1
+# baseline = no-retrieval baseline accuracy; treated = accuracy with the discovered harness.
+# All five models were held out from the harness search.
+model,baseline,treated
+GPT-5.4-nano,23.0,31.7
+Gemini-3.1-Flash-Lite,28.6,34.9
+GPT-5.4-mini,28.8,30.4
+Gemini-3-Flash,42.6,46.3
+GPT-OSS-20B,47.6,50.6
