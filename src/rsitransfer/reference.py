@@ -187,3 +187,52 @@ def fit_all(cube: Cube, **kwargs) -> list[ReferenceFit]:
     """Fit every harness in the cube."""
     return [fit_harness(cube, h, **kwargs) for h in cube.harnesses]
 
+
+def power_curve(
+    cube: Cube,
+    target: str,
+    effects: Array | None = None,
+    *,
+    trials: int = 300,
+    alpha: float = 0.05,
+    seed: int = 0,
+    **fit_kwargs,
+) -> tuple[Array, Array]:
+    """How large a gradient would this design actually detect?
+
+    Injects a known slope into one harness's scores -- adding `effect * capability` to
+    every task in each model's cell -- and reports how often the permutation test recovers
+    it. The answer sets whether any public matrix of this size can settle the question, or
+    whether a controlled within-harness ablation is the only way to.
+
+    Each trial starts from a *relabelled* cube: harness labels are shuffled within every
+    (model, task) cell before injection, so the target harness begins with no gradient of
+    its own. Injecting on top of a harness that already has one would add to it and
+    overstate power -- and by how much depends on which harness you happen to pick.
+    """
+    if effects is None:
+        effects = np.linspace(0.0, 1.5, 7)
+
+    rng = np.random.default_rng(seed)
+    idx = cube.harnesses.index(target)
+    others = [i for i in range(len(cube.harnesses)) if i != idx]
+    capability = cube.values[others].mean(axis=(0, 2))
+    capability = capability - capability.mean()
+    n_h, n_m, n_t = cube.values.shape
+
+    detected = np.zeros(len(effects))
+    for e, effect in enumerate(effects):
+        hits = 0
+        for t in range(trials):
+            order = np.argsort(rng.random((n_h, n_m, n_t)), axis=0)
+            spiked = np.take_along_axis(cube.values, order, axis=0)
+            spiked[idx] += (effect * capability)[:, None]
+            fit = fit_harness(
+                Cube(spiked, cube.harnesses, cube.models, cube.tasks, cube.dropped_tasks),
+                target,
+                seed=int(rng.integers(1 << 30)),
+                **fit_kwargs,
+            )
+            hits += fit.null_p < alpha
+        detected[e] = hits / trials
+    return np.asarray(effects), detected
