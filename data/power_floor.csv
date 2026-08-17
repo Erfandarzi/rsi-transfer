@@ -1,0 +1,15 @@
+harness,injected_beta,detection_rate
+nanobot,0.00,0.050
+nanobot,0.15,0.200
+nanobot,0.30,0.333
+nanobot,0.45,0.533
+nanobot,0.60,0.717
+nanobot,0.75,0.867
+nanobot,1.00,1.000
+hermes,0.00,0.017
+hermes,0.15,0.117
+hermes,0.30,0.333
+hermes,0.45,0.600
+hermes,0.60,0.733
+hermes,0.75,0.883
+hermes,1.00,0.967
