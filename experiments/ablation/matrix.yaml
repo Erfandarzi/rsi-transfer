@@ -1,0 +1,53 @@
+# Run matrix for the environment-bootstrapping ablation.
+#
+# Fixed before the first paid call (see PREREGISTRATION.md). The task subset, ladder and
+# attempt count are not adjusted after seeing results.
+#
+# Nothing here runs anything. `cost_estimate.py` reads this file and prints a projection;
+# executing the matrix is a separate, deliberate step.
+
+dataset: terminal-bench@2.0
+sandbox: docker          # local; `runloop` is the cloud option and costs extra
+
+arms:
+  - baseline             # all three mechanisms off -- the reference for every comparison
+  - full                 # the artifact as released
+  - no_bootstrap         # the headline ablation
+  - no_cancelled         # the systemic control: expected flat
+
+# The ladder must span a wide capability range or the slope is noise. Rungs are litellm
+# model strings; OpenRouter gives the widest cross-provider spread on one key.
+ladder:
+  - id: openrouter/qwen/qwen3.5-4b-instruct
+    label: qwen3.5-4b
+  - id: anthropic/claude-haiku-4-5-20251001
+    label: haiku-4.5
+  - id: openai/gpt-5.4-mini
+    label: gpt-5.4-mini
+  - id: anthropic/claude-opus-4-6
+    label: opus-4.6        # the artifact's discovery model
+
+tasks:
+  n: 20                  # `harbor run -n 20`; a fixed subset, not resampled per arm
+  seed: 0
+
+attempts: 3              # repeats per (arm, model, task) for the variance estimate
+
+# Primary outcome is turns and tokens -- the artifact's own claim is "saves 2-5 early
+# exploration turns". Pass rate is secondary and will be reported as underpowered.
+outcomes:
+  primary: [turns, total_tokens]
+  secondary: [resolved]
+
+# Rough per-task token cost, used only for the projection. Replace with measured values
+# after the first pilot cell.
+assumed_tokens_per_task:
+  input: 120000
+  output: 12000
+
+# USD per million tokens. Check against current pricing before relying on the total.
+pricing:
+  openrouter/qwen/qwen3.5-4b-instruct: {input: 0.04, output: 0.14}
+  anthropic/claude-haiku-4-5-20251001: {input: 1.00, output: 5.00}
+  openai/gpt-5.4-mini: {input: 0.45, output: 1.80}
+  anthropic/claude-opus-4-6: {input: 5.00, output: 25.00}
