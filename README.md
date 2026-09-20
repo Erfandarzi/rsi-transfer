@@ -1,91 +1,96 @@
-# rsi-transfer
+# Do self-generated agent improvements survive a change of base model?
 
-**Do self-generated improvements to AI agents survive a change of base model?**
+Code and analysis for measuring whether a machine-discovered agent harness compensates for the model that found it.
 
-Agent scaffolding is widely said to come in two kinds. *Compensatory* work patches a
-weakness in the current model and becomes dead code once models stop making that mistake.
-*Systemic* work supplies something no model provides for itself — isolation, retries,
-cancellation handling — and outlives every upgrade. The distinction is repeated constantly
-and, as far as we can find, never measured.
+**Erfan Darzi**
 
-It is measurable. Evaluate one modification across models of differing capability, regress
-its benefit on capability, and read off the slope. We call that slope the modification's
-**crutch coefficient**.
+[Findings](analysis/FINDINGS.md) · [Working note](paper/note.md) · [Preregistration](experiments/ablation/PREREGISTRATION.md)
 
-```
-beta < 0   compensatory — decays as models improve
-beta ~ 0   systemic     — durable
-```
+<p align="center">
+  <img src="figures/hero.png" width="100%" alt="Crutch coefficients for six human-designed harnesses, and the detection floor of that design">
+</p>
 
-This belongs to recursive self-improvement rather than to agent engineering because of
-what follows. **A search loop scoring candidates against one fixed model cannot tell the
-two apart** — at discovery time a crutch and a systemic improvement look identical, since
-both raise the number on the model doing the searching. A self-improving system therefore
-accumulates improvements that depreciate on every base-model upgrade, at a rate set by
-their crutch coefficients. Recursion compounds only if the search is biased toward durable
-improvements, and nothing in any current search loop supplies that bias.
+<p align="center">
+<sub><b>(a)</b> Crutch coefficients for six human-designed harnesses (Harness-Bench: 5,194 runs,
+8 models × 103 tasks). Points are split-half estimates, intervals bootstrap 95% CIs over tasks,
+arrows mark intervals running past the axis. Only NullClaw clears its permutation null.
+<b>(b)</b> Detection rate of that same design against gradients injected at known size, starting
+from relabelled cubes so the target carries no gradient of its own. Power reaches 80% only at
+|β| ≈ 0.75, against a published machine-discovered effect of |β| = 0.156.</sub>
+</p>
 
-## Status
+A search loop that scores candidates on one fixed model cannot tell a *compensatory* patch from a *systemic* one. Both raise the same number at discovery time. The distinction is whether the gain shrinks as the base model improves. We call the slope of that relationship the **crutch coefficient**: negative means the modification is worth less on stronger models; flat means it is not.
 
-Findings to date cost no compute; they come from re-analysing published artifacts. The
-controlled experiment is built, verified and **preregistered but not run** — see
-[`experiments/ablation/PREREGISTRATION.md`](experiments/ablation/PREREGISTRATION.md).
+The public record is not large enough to estimate that slope for a discovered harness. Meta-Harness Table 6 gives five held-out models and a point estimate of β = −0.156 (r = −0.577, p = 0.31). The largest published harness × model matrix (Harness-Bench: 6 harnesses × 8 models × 103 tasks) reaches 80% power only at |β| ≈ 0.75, 4.8× that effect. Five of six human-designed harnesses show no gradient, and the signs flip with the scoring metric. The binding constraint is the eight-model ladder, not the tasks under it.
 
-| | |
-|---|---|
-| **F1** | A published machine-discovered harness is worth less on stronger models: `beta = -0.156`, `r = -0.577`, `p = 0.31` (n = 5). Suggestive; not significant. |
-| **F2** | That harness is **94.0%** token-identical to its parent. The entire semantic delta is environment bootstrapping plus **35 tokens**. |
-| **F3** | The discovered mechanism hardcodes `ls -la /app/` — the Terminal-Bench 2 sandbox convention — and misreports an empty listing off that distribution. |
-| **F4** | Across 6 human-designed harnesses × 8 models × 103 tasks, **five of six show no capability gradient**, and signs flip between scoring metrics. |
-| **F5** | That design reaches 80% power only at `|beta| ~ 0.75` — **4.8× larger** than the effect F1 suggests. The public matrix cannot settle this question. |
+The experiment that can tell is therefore a within-harness ablation of one released artifact, preregistered in [`experiments/ablation/`](experiments/ablation/) before any spend. The artifact itself is 94.0% token-identical to its parent; the semantic delta is environment bootstrapping plus 35 tokens.
 
-Full write-up with caveats: [`analysis/FINDINGS.md`](analysis/FINDINGS.md).
-
-The through-line is that **F5 is the case for the experiment**. Cross-harness comparisons
-drown the effect in harness identity. A within-harness ablation — one file, one mechanism
-toggled, everything else held fixed — removes that nuisance factor entirely.
-
-## What this reuses
-
-Nothing here is vendored; upstreams are fetched at pinned commits
-([`upstream.lock`](experiments/ablation/upstream.lock)).
-
-| Source | Role |
-|---|---|
-| [meta-harness-tbench2-artifact](https://github.com/stanford-iris-lab/meta-harness-tbench2-artifact) | the machine-discovered improvement under test |
-| [krafton-ai/KIRA](https://github.com/krafton-ai/KIRA) | its parent — the baseline, with no reimplementation |
-| [Harbor](https://github.com/harbor-framework/terminal-bench) | runner; agent × dataset × model is a CLI flag |
-| [Harness-Bench](https://github.com/Qihoo360/harness-bench) | 5,194 published runs — the human-designed reference class |
-
-We build a metric, an estimator that cannot manufacture the effect it measures, and five
-ablation arms. That is the whole contribution beyond the reuse.
-
-## Reproducing
+## Setup
 
 ```bash
+git clone https://github.com/Erfandarzi/rsi-transfer.git
+cd rsi-transfer
 pip install -e ".[dev]"
-make data      # fetch the public Harness-Bench matrix into data/raw (not committed)
-make figures   # regenerate every figure from cached data — no network, no API keys
-make test      # 41 tests: metric, estimator, ablation arm integrity
-make arms      # fetch pinned upstreams and build the five ablation arms — no API calls
 ```
 
-## A note on the statistics
+| Command | What it does |
+|---|---|
+| `make data` | Fetch the published Harness-Bench run matrix into `data/raw/` (not redistributed here) |
+| `make figures` | Regenerate every figure from cached data. No network, no API keys |
+| `make test` | Estimator, metric, and ablation-arm integrity |
+| `make arms` | Pin upstreams and build the five ablation arms |
+| `make anatomy` | Token-level diff of the artifact against its parent |
+| `python experiments/ablation/cost_estimate.py` | Projected spend for the run matrix (≈ $279). Prints; does not run anything |
 
-Measuring this naively produces a false positive every time. If a harness's advantage is
-defined against the average of all harnesses on a model, and capability is *also* that
-average, the two share a term with opposite signs and are anti-correlated by arithmetic
-before any data is consulted — every harness looks like a crutch.
+```bash
+python analysis/01_pilot_table6.py     # Meta-Harness Table 6, five held-out models
+make anatomy                           # token identity and the hardcoded /app/ listing
+python analysis/02_reference_class.py  # split-half estimator on Harness-Bench
+python analysis/03_power_floor.py      # injected-gradient power
+```
 
-So advantage and capability are computed on **disjoint** halves of the remaining harnesses,
-averaged over random splits, and every slope is quoted against a **permutation null** that
-shuffles harness labels within each (model, task) cell. That null preserves model and task
-structure exactly while destroying harness identity, so it inherits any coupling the
-estimator itself introduces. It centres on `-0.0001`.
+Advantage and capability are computed on disjoint halves of the remaining harnesses and averaged over random splits. Every slope is quoted against a permutation null that shuffles harness labels within each (model, task) cell. That null centres on −0.0001.
 
-## Data licensing
+## Experiment
 
-Harness-Bench publishes no LICENSE and GitHub reports its licence field as null, so its run
-data is all-rights-reserved by default. It is cached locally for analysis and cited; it is
-never redistributed here. `data/raw/` is gitignored, and `make data` fetches it from the
-authors' own site.
+Three mechanisms from one released Terminal-Bench 2 harness, isolated as separate arms, each with a prediction committed in [`experiments/ablation/PREREGISTRATION.md`](experiments/ablation/PREREGISTRATION.md):
+
+| Arm | Mechanism | Prediction |
+|---|---|---|
+| `no_bootstrap` | environment snapshot injected into the first prompt | β < 0 |
+| `no_haiku_json` | decode commands when the model double-encodes them | β < 0, near-binary in model family |
+| `no_cancelled` | treat `asyncio.CancelledError` as retryable | β ≈ 0 (control) |
+
+If the control shows a gradient, the instrument is measuring something other than compensation and the other two readings are void. Primary outcomes are turns and tokens rather than pass rate: the artifact's claim is that it saves 2–5 early exploration turns.
+
+The matrix, ladder, tasks, and attempts are fixed in `experiments/ablation/matrix.yaml`. Upstreams are fetched at commits in `upstream.lock`; nothing is vendored.
+
+## Citation
+
+```bibtex
+@software{darzi2026rsitransfer,
+  author = {Darzi, Erfan},
+  title  = {rsi-transfer: measuring whether self-generated agent improvements
+            survive a change of base model},
+  year   = {2026},
+  url    = {https://github.com/Erfandarzi/rsi-transfer}
+}
+```
+
+## Acknowledgements
+
+This work analyses artifacts released by others. Upstreams are fetched at pinned commits rather than vendored.
+
+- [Meta-Harness](https://arxiv.org/abs/2603.28052) (Lee, Nair, Zhang, Lee, Khattab, Finn) — the discovered harness under study, and the held-out evaluation that motivates the Table 6 reanalysis. Their Terminal-Bench 2 result had no held-out split because the benchmark was too expensive; this work follows that thread.
+- [Terminus-KIRA](https://github.com/krafton-ai/KIRA) (KRAFTON AI) — the parent agent, which makes a clean ablation possible with no reimplementation.
+- [Harness-Bench](https://arxiv.org/abs/2605.27922) (Qihoo360) — 5,194 published runs across 7 harnesses and 8 models.
+- [Harbor](https://github.com/harbor-framework/terminal-bench) — the runner.
+
+Related work on a different durability axis: [AgingBench](https://agingbench.github.io/) and *Your Agents Are Aging Too* ([arXiv:2605.26302](https://arxiv.org/html/2605.26302)) measure how human-designed memory policies degrade over deployment sessions with frozen weights.
+
+## License
+
+MIT ([LICENSE](LICENSE)). Harness-Bench publishes no licence file, so its run data is all-rights-reserved by default: cached locally, cited, never redistributed. `data/raw/` is gitignored; `make data` fetches from the authors' site.
+
+[![tests](https://github.com/Erfandarzi/rsi-transfer/actions/workflows/ci.yml/badge.svg)](https://github.com/Erfandarzi/rsi-transfer/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
