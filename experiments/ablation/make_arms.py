@@ -118,9 +118,13 @@ ARMS: dict[str, list[str]] = {
 
 
 def main() -> None:
+    # Defaults resolve against this file, not the working directory, so that running
+    # `python experiments/ablation/make_arms.py` from the repo root finds the upstreams
+    # setup.sh put beside it.
+    here = Path(__file__).resolve().parent
     ap = argparse.ArgumentParser()
-    ap.add_argument("--upstream", type=Path, default=Path("./upstream"))
-    ap.add_argument("--out", type=Path, default=Path("./arms"))
+    ap.add_argument("--upstream", type=Path, default=here / "upstream")
+    ap.add_argument("--out", type=Path, default=here / "arms")
     args = ap.parse_args()
 
     artifact = args.upstream / "artifact"
