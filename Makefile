@@ -1,6 +1,6 @@
 PY := conda run -n dify python
 
-.PHONY: all data figures test lint arms clean
+.PHONY: all data figures test lint arms anatomy clean
 
 all: data figures test
 
@@ -13,6 +13,12 @@ figures: data              ## regenerate every figure from cached data (no netwo
 	@$(PY) analysis/01_pilot_table6.py
 	@$(PY) analysis/02_reference_class.py
 	@$(PY) analysis/03_power_floor.py
+	@$(PY) analysis/make_hero.py
+
+anatomy: arms              ## token-level diff of the artifact against its parent
+	@PYTHONPATH=src $(PY) -m rsitransfer.anatomy \
+	  --kira experiments/ablation/upstream/kira/terminus_kira/terminus_kira.py \
+	  --artifact experiments/ablation/upstream/artifact/agent.py
 
 test:                      ## unit tests: metric, reference estimator, ablation arm integrity
 	@$(PY) -m pytest -q
