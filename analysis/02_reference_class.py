@@ -19,13 +19,14 @@ import csv
 import sys
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from rsitransfer import harnessbench as hb, reference as ref  # noqa: E402
+from rsitransfer import harnessbench as hb, plotting as viz, reference as ref  # noqa: E402
 from rsitransfer.crutch import crutch_coefficient  # noqa: E402
 
 CACHE = ROOT / "data" / "raw"
@@ -78,36 +79,41 @@ def main() -> None:
                                  f"{f.null_p:.4f}", f.verdict])
 
     # --- figure -------------------------------------------------------------------
-    fig, ax = plt.subplots(figsize=(8.2, 4.6))
+    mpl.rcParams.update(viz.neurips_style())
+    fig, ax = plt.subplots(figsize=(viz.TEXT_WIDTH_IN * 0.66, 2.1))
     ordered = sorted(primary, key=lambda f: f.beta)
-    y = np.arange(len(ordered))
+    limit = 1.35
 
-    ax.axvspan(-detectable, detectable, color="#e2e8f0", zorder=0,
-               label=f"permutation null, 95% band (±{detectable:.2f})")
-    ax.axvline(0, color="#718096", lw=0.9, zorder=1)
+    ax.axvspan(-detectable, detectable, color=viz.LIGHT, zorder=0, lw=0,
+               label=rf"permutation null, 95\% ($\pm${detectable:.2f})"
+               if mpl.rcParams["text.usetex"]
+               else rf"permutation null, 95% ($\pm${detectable:.2f})")
+    ax.axvline(0, color=viz.GREY, lw=0.6, zorder=1)
 
     for i, fit in enumerate(ordered):
-        sig = fit.null_p < 0.05
-        colour = "#c05621" if sig else "#4a5568"
-        ax.plot([fit.ci95[0], fit.ci95[1]], [i, i], color=colour, lw=2, zorder=3)
-        ax.plot(fit.beta, i, "o", color=colour, ms=8, zorder=4)
+        lo, hi = fit.ci95
+        colour = viz.ORANGE if fit.null_p < 0.05 else viz.BLACK
+        ax.plot([max(lo, -limit), min(hi, limit)], [i, i], color=colour, lw=1.0, zorder=3)
+        for bound, side in ((lo, -1), (hi, 1)):
+            if side * bound > limit:
+                ax.annotate("", xy=(side * limit, i), xytext=(side * (limit - 0.10), i),
+                            arrowprops=dict(arrowstyle="-|>", color=colour, lw=1.0,
+                                            mutation_scale=6), zorder=3)
+        ax.plot(fit.beta, i, "o", color=colour, ms=3.2, zorder=4)
 
-    ax.axvline(mh, color="#2b6cb0", ls="--", lw=1.6, zorder=2,
-               label=f"Meta-Harness, machine-discovered (beta = {mh:+.3f})")
+    ax.axvline(mh, color=viz.BLUE, ls=(0, (3, 2)), lw=0.9, zorder=2,
+               label=rf"machine-discovered ($\beta$ = {mh:+.3f})")
 
-    ax.set_yticks(y)
+    ax.set_yticks(np.arange(len(ordered)))
     ax.set_yticklabels([f.harness for f in ordered])
-    ax.set_xlabel("crutch coefficient  (advantage per unit of base-model capability)")
-    ax.set_title("Five of six human-designed harnesses show no capability gradient",
-                 fontsize=11)
-    ax.legend(fontsize=8, loc="lower right")
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.text(0.01, 0.01,
-             "Harness-Bench, 5,194 public runs: 6 portable harnesses x 8 models x 103 tasks. "
-             "Bars are bootstrap 95% CIs over tasks; orange clears its permutation null.",
-             fontsize=7, color="#555")
-    fig.tight_layout(rect=(0, 0.045, 1, 1))
-    fig.savefig(FIGURE, dpi=200)
+    ax.set_xlim(-limit, limit)
+    # Room below the last interval, so the legend does not sit on the data it explains.
+    ax.set_ylim(-1.75, len(ordered) - 0.4)
+    ax.set_yticks(np.arange(len(ordered)))
+    ax.set_xlabel(f"crutch coefficient {viz.beta()}")
+    ax.legend(loc="lower left", fontsize=6.0, borderaxespad=0.25, labelspacing=0.3)
+    fig.savefig(FIGURE)
+    fig.savefig(FIGURE.with_suffix(".pdf"))
     print(f"\nfigure -> {FIGURE.relative_to(ROOT)}\ntable  -> {TABLE.relative_to(ROOT)}")
 
 

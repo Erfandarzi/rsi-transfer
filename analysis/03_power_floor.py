@@ -14,13 +14,14 @@ import csv
 import sys
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from rsitransfer import harnessbench as hb, reference as ref  # noqa: E402
+from rsitransfer import harnessbench as hb, plotting as viz, reference as ref  # noqa: E402
 from rsitransfer.crutch import crutch_coefficient  # noqa: E402
 
 EFFECTS = np.array([0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 1.0])
@@ -61,24 +62,29 @@ def main() -> None:
             for e, d in zip(EFFECTS, detected):
                 w.writerow([harness, f"{e:.2f}", f"{d:.3f}"])
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.4))
-    for harness, detected in curves.items():
-        ax.plot(EFFECTS, detected, "o-", lw=1.8, ms=5, label=f"injected into {harness}")
-    ax.axhline(0.8, color="#718096", ls=":", lw=1, label="80% power")
-    ax.axvline(abs(MH_BETA), color="#2b6cb0", ls="--", lw=1.6,
-               label=f"|Meta-Harness beta| = {abs(MH_BETA):.3f}")
-    ax.set_xlabel("injected crutch coefficient |beta|")
+    mpl.rcParams.update(viz.neurips_style())
+    fig, ax = plt.subplots(figsize=(viz.TEXT_WIDTH_IN * 0.62, 2.0))
+
+    for (harness, detected), colour in zip(curves.items(), (viz.BLACK, viz.ORANGE)):
+        ax.plot(EFFECTS, detected, "-o", lw=1.0, ms=2.8, color=colour,
+                label=rf"injected into \texttt{{{harness}}}"
+                if mpl.rcParams["text.usetex"] else f"injected into {harness}")
+
+    ax.axhline(0.8, color=viz.GREY, ls=(0, (1, 2)), lw=0.7, zorder=1)
+    ax.axvline(abs(MH_BETA), color=viz.BLUE, ls=(0, (3, 2)), lw=0.9, zorder=2)
+    ax.text(0.015, 0.815, "80\\% power" if mpl.rcParams["text.usetex"] else "80% power",
+            color=viz.GREY, fontsize=6.5, ha="left", va="bottom")
+    ax.text(abs(MH_BETA) + 0.02, 0.99, "observed effect", color=viz.BLUE,
+            fontsize=6.3, ha="left", va="top")
+
+    ax.set_xlabel(f"injected {viz.beta()}, absolute value")
     ax.set_ylabel("detection rate")
-    ax.set_ylim(-0.05, 1.05)
-    ax.set_title("The public matrix is blind to gradients the size of the observed one",
-                 fontsize=11)
-    ax.legend(fontsize=8, loc="center right")
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.text(0.01, 0.01,
-             "8 models x 103 tasks, permutation test at alpha = 0.05, 60 trials per point.",
-             fontsize=7, color="#555")
-    fig.tight_layout(rect=(0, 0.045, 1, 1))
-    fig.savefig(FIGURE, dpi=200)
+    ax.set_xlim(-0.02, EFFECTS.max() + 0.03)
+    ax.set_ylim(-0.03, 1.05)
+    ax.set_yticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.legend(loc="lower right", fontsize=6.3, borderaxespad=0.2, labelspacing=0.3)
+    fig.savefig(FIGURE)
+    fig.savefig(FIGURE.with_suffix(".pdf"))
     print(f"\nfigure -> {FIGURE.relative_to(ROOT)}\ntable  -> {TABLE.relative_to(ROOT)}")
 
 

@@ -19,12 +19,14 @@ import csv
 import sys
 from pathlib import Path
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from rsitransfer import plotting as viz  # noqa: E402
 from rsitransfer.crutch import crutch_coefficient  # noqa: E402
 
 DATA = ROOT / "data" / "meta_harness_table6.csv"
@@ -57,30 +59,30 @@ def main() -> None:
     print("  harness is worth less on stronger models -- but n=5 cannot establish it, and")
     print("  headroom normalisation halves the correlation. Suggestive, not a finding.")
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.6))
-    ax.scatter(baseline, treated - baseline, s=70, zorder=3, color="#2b6cb0")
-    for name, b, g in zip(models, baseline, treated - baseline):
-        ax.annotate(name, (b, g), textcoords="offset points", xytext=(7, 5), fontsize=8)
+    mpl.rcParams.update(viz.neurips_style())
+    fig, ax = plt.subplots(figsize=(viz.TEXT_WIDTH_IN * 0.62, 2.0))
 
     grid = np.linspace(baseline.min() - 2, baseline.max() + 2, 100)
-    ax.plot(grid, raw.intercept + raw.beta * grid, "--", color="#c05621", lw=1.6,
-            label=f"fit: beta = {raw.beta:+.3f}, r = {raw.r:+.2f}, p = {raw.p_value:.2f} (n=5, n.s.)")
-    ax.axhline(0, color="#999", lw=0.8, zorder=1)
+    ax.plot(grid, raw.intercept + raw.beta * grid, ls=(0, (3, 2)), color=viz.ORANGE,
+            lw=0.9, zorder=2,
+            label=rf"$\beta$ = {raw.beta:+.3f}, $r$ = {raw.r:+.2f}, "
+                  rf"$p$ = {raw.p_value:.2f}")
+    ax.axhline(0, color=viz.GREY, lw=0.6, zorder=1)
+    ax.plot(baseline, treated - baseline, "o", ms=3.5, color=viz.BLUE, zorder=3)
 
-    ax.set_xlabel("Base model capability (no-retrieval baseline accuracy, %)")
-    ax.set_ylabel("Benefit of the discovered harness (points)")
-    ax.set_title("A machine-discovered improvement is worth less on stronger models",
-                 fontsize=11)
-    ax.legend(fontsize=8, loc="upper right")
-    ax.spines[["top", "right"]].set_visible(False)
-    fig.text(0.01, 0.01,
-             "Data: Meta-Harness (arXiv:2603.28052) Table 6, replotted. Suggestive only -- "
-             "not significant at n=5; headroom-normalised r = "
-             f"{normalised.r:+.2f}.",
-             fontsize=7, color="#555")
-    fig.tight_layout(rect=(0, 0.04, 1, 1))
+    for name, b, g in zip(models, baseline, treated - baseline):
+        ax.annotate(name, (b, g), textcoords="offset points", xytext=(4, 3.5),
+                    fontsize=5.6, color=viz.BLACK)
+
+    ax.set_xlabel("base-model capability (baseline accuracy, \\%)"
+                  if mpl.rcParams["text.usetex"]
+                  else "base-model capability (baseline accuracy, %)")
+    ax.set_ylabel("benefit (points)")
+    ax.set_ylim(-0.6, 10.4)
+    ax.legend(loc="upper right", fontsize=6.3, borderaxespad=0.2)
     FIGURE.parent.mkdir(exist_ok=True)
-    fig.savefig(FIGURE, dpi=200)
+    fig.savefig(FIGURE)
+    fig.savefig(FIGURE.with_suffix(".pdf"))
     print(f"\n  figure -> {FIGURE.relative_to(ROOT)}")
 
 
