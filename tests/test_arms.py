@@ -100,7 +100,8 @@ def test_every_arm_keeps_the_entry_point(arm):
 def test_bootstrap_is_off_before_any_await():
     """The ablated snapshot must short-circuit, not merely be unused."""
     fn = find_function(tree("no_bootstrap"), "_gather_env_snapshot")
-    body = [s for s in fn.body if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+    body = [s for s in fn.body
+            if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
 
     first = body[0]
     assert isinstance(first, ast.Return), "first statement should be an unconditional return"

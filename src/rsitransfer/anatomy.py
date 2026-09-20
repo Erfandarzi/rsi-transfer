@@ -47,7 +47,8 @@ def token_stream(path: Path) -> list[str]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--kira", type=Path, required=True, help="terminus_kira.py from krafton-ai/KIRA")
+    ap.add_argument("--kira", type=Path, required=True,
+                    help="terminus_kira.py from krafton-ai/KIRA")
     ap.add_argument("--artifact", type=Path, required=True, help="agent.py from the artifact repo")
     args = ap.parse_args()
 

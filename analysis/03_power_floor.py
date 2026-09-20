@@ -21,7 +21,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from rsitransfer import harnessbench as hb, plotting as viz, reference as ref  # noqa: E402
+from rsitransfer import harnessbench as hb  # noqa: E402
+from rsitransfer import plotting as viz
+from rsitransfer import reference as ref
 
 EFFECTS = np.array([0.0, 0.15, 0.3, 0.45, 0.6, 0.75, 1.0])
 FIGURE = ROOT / "figures" / "power_floor.png"

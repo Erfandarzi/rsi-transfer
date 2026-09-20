@@ -26,7 +26,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from rsitransfer import harnessbench as hb, plotting as viz, reference as ref  # noqa: E402
+from rsitransfer import harnessbench as hb  # noqa: E402
+from rsitransfer import plotting as viz
+from rsitransfer import reference as ref
 from rsitransfer.crutch import crutch_coefficient  # noqa: E402
 
 CACHE = ROOT / "data" / "raw"
@@ -52,7 +54,8 @@ def main() -> None:
         cube = ref.score_cube(frame, score=score)
         fits = ref.fit_all(cube)
         results[score] = fits
-        print(f"\n{score}  (cube {cube.shape}, {len(cube.dropped_tasks)} tasks dropped as unscored)")
+        print(f"\n{score}  (cube {cube.shape}, "
+              f"{len(cube.dropped_tasks)} tasks dropped as unscored)")
         for fit in sorted(fits, key=lambda f: f.beta):
             print("   ", fit.summary())
 

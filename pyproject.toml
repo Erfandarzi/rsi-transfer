@@ -32,3 +32,11 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+# Selected explicitly rather than left to the default, which changes between ruff
+# releases -- CI installs the newest and would otherwise disagree with a local run.
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+# Analysis scripts extend sys.path before importing the package, so imports cannot all
+# sit at the top of the file.
+ignore = ["E402"]
