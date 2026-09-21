@@ -1,4 +1,4 @@
-# Do self-generated agent improvements survive a change of base model?
+# Recursive Self Improvement: Do self-generated agent improvements survive a change of base model?
 
 Code and analysis for measuring whether a machine-discovered agent harness compensates for the model that found it.
 
